@@ -1,0 +1,49 @@
+doctype html
+html(lang='en')
+  head
+    meta(charset='UTF-8')
+    title Vue Test
+    // This is a development version of Vue.js!
+    script(src='https://cdn.jsdelivr.net/npm/vue/dist/vue.js')
+    // import stylesheet
+    link(rel='stylesheet' href='styles.css')
+    // Google fonts
+    link(href='https://fonts.googleapis.com/css?family=Open+Sans' rel='stylesheet')
+  body
+    text Pour s'inscrire c'est ici
+        form(action="/register" method="POST") 
+            p Entrez votre pseudo (4 caractères minimum)
+            div  
+                input(name="name_register")
+            if (etat == 1)
+                p.text-danger Nom d'utilisateur trop court, réessayez.
+            p Entrez votre email 
+            div   
+                input(name="email_register")
+            if (etat == 2)
+                p.text-danger Adresse e-mail non valide, réessayez.
+            if (etat == 5)
+                p.text-danger Adresse e-mail déjà utilisée, réessayez.
+            p Entrez votre mot de passe (6 caractères minimum) 
+            div  
+                input(type = "password" ,name="password_register")
+            if (etat == 3)
+                p.text-danger Mot de passe trop court, réessayez.  
+            p Confirmez votre mot de passe 
+            div     
+                input(type = "password" ,name="password_register_confirm")
+            if (etat == 4)
+                p.text-danger Le mot de passe et sa confirmation sont différents, réessayez.
+            div  
+                input(type="submit" value="S'inscrire")
+        
+        text Pour se connecter c'est là
+        form(action="/login" method="POST") 
+            p Entrez votre nom d'utilisateur ou adresse e-mail
+            div     
+                input(name="name")
+            p Entrez votre mot de passe
+            div     
+                input(type = "password" ,name="password")
+            div     
+                input(type="submit" value="valider")

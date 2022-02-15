@@ -110,7 +110,7 @@ app.get("/",(req,res)=> {
 }
   if (data.user_id){
     console.log("on est connecté");
-    res.render("index",data)
+    res.render("home",data)
   }
   else {
     res.redirect("/connect");
@@ -119,7 +119,7 @@ app.get("/",(req,res)=> {
 
 app.get("/connect",(req,res)=> {
   console.log("Il faut se connecter maintenant");
-  res.render("index");
+  res.render("login");
 });
 
 app.post("/login",async(req,res)=> {
@@ -139,7 +139,7 @@ app.get("/register",async(req,res)=> {
     etat : req.query.state,
   }
   if (data.inscription == 1) {
-    res.render("index",data)
+    res.render("login",data)
   }
   if (data.inscription == 0) {
     res.redirect("/")
