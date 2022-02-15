@@ -1,16 +1,33 @@
-const http = require("http");
-const host = 'localhost';
-const port = 4000;
-
 const express = require('express');
 const app = express()
+const port = process.env.PORT || 4000;
+
 const bodyParser = require('body-parser');
 app.use(bodyParser.json()); // support json encoded bodies
 app.use(bodyParser.urlencoded({ extended: true })); // support encoded bodies
 
 const session = require('express-session');
-const convert = require('xml-js');
 const fs = require('fs');
+
+const config = {
+  //store: new SQLiteStore,
+  secret: 'secret key',
+  resave: true,
+  rolling: true,
+  cookie: {
+    maxAge: 1000 * 3600//ms
+  },
+  saveUninitialized: true
+}
+
+if (app.get('env') === 'production') {
+  app.set('trust proxy', 1) // trust first proxy
+  sess.cookie.secure = true // serve secure cookies
+}
+app.use(session(config))
+
+app.set('views', './Views');
+app.set('view engine', 'jade');
 
 function randomBulbi(){
 //Constante bulbizarre
@@ -81,20 +98,78 @@ const xmlFile6 = xmlFile5.replace(/CLAW/gi, claws[Math.floor(Math.random() * 5)]
 fs.writeFileSync('bulbi.svg',xmlFile6)
 }
 
-const server = http.createServer((req, res) => {
-    res.writeHead(200, { 'content-type': 'text/html' })
-    fs.createReadStream('index.html').pipe(res)
-  })
-
-  server.listen(port, host, () => {
-    console.log(`Server is running on http://${host}:${port}`);
+app.listen(port, () => {
+    console.log(`listening on ${port}`);
 });
 
-app.get("/login",(req,res)=> {
-  res.render("main",data)
+app.get("/",(req,res)=> {
+  const data = {
+    name : req.session.name,
+    password : req.session.password,
+    user_id : req.session.user_id,
+}
+  if (data.user_id){
+    console.log("on est connecté");
+    res.render("index",data)
+  }
+  else {
+    res.redirect("/connect");
+  }
 });
 
-app.post("/login",(req,res)=> {
+app.get("/connect",(req,res)=> {
+  console.log("Il faut se connecter maintenant");
+  res.render("index");
+});
+
+app.post("/login",async(req,res)=> {
+  const data = {
+    name : req.body.name,
+    password : req.body.password,
+    session : req.session.user_id,
+  }
+  req.session.user_id =1;
   console.log("ici");
-  randomBulbi();
+  res.redirect("/")
+});
+
+app.get("/register",async(req,res)=> {
+  const data = {
+    inscription : req.query.register,
+    etat : req.query.state,
+  }
+  if (data.inscription == 1) {
+    res.render("index",data)
+  }
+  if (data.inscription == 0) {
+    res.redirect("/")
+  }
+});
+
+app.post("/register",async(req,res)=> {
+  const data = {
+    inscription : req.query.register,
+    etat : req.query.state,
+    name_register : req.body.name_register,
+    password_register : req.body.password_register,
+    email_register : req.body.email_register,
+    password_register_confirm : req.body.password_register_confirm,  
+  }
+  //On se connecte automatiquement avec nos identifiants
+  if (data.name_register.length > 3 && data.password_register.length > 5 && data.email_register.match(/[a-z0-9_\-\.]+@[a-z0-9_\-\.]+\.[a-z]+/i) && data.password_register == data.password_register_confirm){
+    req.session.user_id = 1;    
+    res.redirect("/")
+  }
+  else if (data.name_register.length <= 3){
+    res.redirect("/register?register=1&state=1") //Name is too short
+  }
+  else if (!data.email_register.match(/[a-z0-9_\-\.]+@[a-z0-9_\-\.]+\.[a-z]+/i)){
+    res.redirect("/register?register=1&state=2")
+  }
+  else if (data.password_register.length <= 5){
+    res.redirect("/register?register=1&state=3")
+  }
+  else if (data.password_register != data.password_register_confirm){
+    res.redirect("/register?register=1&state=4")
+  }
 });
