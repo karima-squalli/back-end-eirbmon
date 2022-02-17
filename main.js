@@ -9,6 +9,17 @@ app.use(bodyParser.urlencoded({ extended: true })); // support encoded bodies
 const session = require('express-session');
 const fs = require('fs');
 
+const mongoose = require('mongoose');
+const { MongoClient } = require('mongodb');
+
+mongoose.connect('mongodb://localhost:27017/test', {useNewUrlParser: true, useUnifiedTopology: true});
+
+db = mongoose.connection;
+db.on('error', console.error.bind(console, 'connection error:'));
+db.once('open', function() {
+  console.log("connecté à Mongoose")
+});
+
 const config = {
   //store: new SQLiteStore,
   secret: 'secret key',
@@ -25,6 +36,8 @@ if (app.get('env') === 'production') {
   sess.cookie.secure = true // serve secure cookies
 }
 app.use(session(config))
+let users = require('./init.js');
+const req = require('express/lib/request');
 
 app.set('views', './Views');
 app.set('view engine', 'jade');
@@ -98,50 +111,100 @@ const xmlFile6 = xmlFile5.replace(/CLAW/gi, claws[Math.floor(Math.random() * 5)]
 fs.writeFileSync('bulbi.svg',xmlFile6)
 }
 
+//Fonction d'appel à la database 
+
+const createUser = async object => {
+  const collection = db.collection('users');
+  const user = await collection.insertOne(object);
+  return user
+}
+
+
+const findUsers = async user_name => {
+  const user = await users.find({})
+  return user
+}
+
 app.listen(port, () => {
     console.log(`listening on ${port}`);
 });
 
-app.get("/",(req,res)=> {
+app.get("/",async (req,res)=> {
+  const users = await findUsers()
   const data = {
+    users,
     name : req.session.name,
     password : req.session.password,
-    user_id : req.session.user_id,
+    logged : req.session.logged,
 }
-  if (data.user_id){
+  if (data.logged){
     console.log("on est connecté");
     res.render("home",data)
   }
   else {
-    res.redirect("/connect");
+    res.redirect("/login");
   }
 });
 
-app.get("/connect",(req,res)=> {
-  console.log("Il faut se connecter maintenant");
+app.get("/login",async(req,res)=> {
+  if (req.session.connect_error){
+    console.log(req.session.connect_error);
+  }
   res.render("login");
 });
 
 app.post("/login",async(req,res)=> {
-  const data = {
+  const users = await findUsers()
+  data = {
     name : req.body.name,
     password : req.body.password,
-    session : req.session.user_id,
   }
-  req.session.user_id =1;
-  console.log("ici");
+  let test = false;
+  let user_id = 0;
+  for (let i = 0; i<users.length; i++){
+      if (users[i].user_mail ===data.name) {
+        console.log(users[i]);
+          test = true
+          user_id = i
+      }
+  }
+  for (let i = 0; i<users.length; i++){
+    if (users[i].user_name ===data.name) {
+        test = true
+        user_id = i
+    }
+}
+  if (!test){
+        req.session.connect_error = "Aucun compte n'est associé à cette adresse mail ou ce nom d'utilisateur.",
+        req.session.logged = false
+  }
+  else{
+      const passwords = await users.findOne({user_mail: data.name})
+      passwords.forEach(element => test = (element.user_password===password))
+      if (!test){
+            req.session.connect_error = "Le mot de passe saisi est incorrect.",
+            req.session.logged = false
+      }
+      else{
+          req.session.mail = mail
+          const object_user = db.users.find({user_mail: data.name}, {user_name})
+          req.session.user = object_user.user_name
+          req.session.success = "Vous êtes log"
+          req.session.logged =  true
+      }
+  }
   res.redirect("/")
 });
 
 app.get("/register",async(req,res)=> {
   const data = {
     inscription : req.query.register,
-    etat : req.query.state,
   }
-  if (data.inscription == 1) {
+  if(res.session.register_error != false) {
+    console.log(req.session.register_error)
     res.render("login",data)
   }
-  if (data.inscription == 0) {
+  else{
     res.redirect("/")
   }
 });
@@ -155,21 +218,31 @@ app.post("/register",async(req,res)=> {
     email_register : req.body.email_register,
     password_register_confirm : req.body.password_register_confirm,  
   }
+  const username = req.body.username
+  const mail = req.body.mail
+  const password = req.body.password
+  const password_confirm = req.body.password_confirm
   //On se connecte automatiquement avec nos identifiants
   if (data.name_register.length > 3 && data.password_register.length > 5 && data.email_register.match(/[a-z0-9_\-\.]+@[a-z0-9_\-\.]+\.[a-z]+/i) && data.password_register == data.password_register_confirm){
-    req.session.user_id = 1;    
+    console.log(createUser({ user_name: username, user_mail: mail,user_password:password}))
+    req.session.logged = true; 
+    req.session.register_error = false;   
     res.redirect("/")
   }
   else if (data.name_register.length <= 3){
-    res.redirect("/register?register=1&state=1") //Name is too short
+    req.session.register_error = "Le nom est trop court"
+    res.redirect("/") //Name is too short
   }
   else if (!data.email_register.match(/[a-z0-9_\-\.]+@[a-z0-9_\-\.]+\.[a-z]+/i)){
-    res.redirect("/register?register=1&state=2")
+    req.session.register_error = "L'adresse email n'a pas le bon format"
+    res.redirect("/")
   }
   else if (data.password_register.length <= 5){
-    res.redirect("/register?register=1&state=3")
+    req.session.register_error = "Le mot de passe est trop court"
+    res.redirect("/")
   }
   else if (data.password_register != data.password_register_confirm){
-    res.redirect("/register?register=1&state=4")
+    req.session.register_error = "Les mots de passes ne matchent pas"
+    res.redirect("/")
   }
 });
