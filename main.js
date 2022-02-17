@@ -11,14 +11,20 @@ const fs = require('fs');
 
 const mongoose = require('mongoose');
 const { MongoClient } = require('mongodb');
-
+let users = require('./init.js');
 mongoose.connect('mongodb://localhost:27017/test', {useNewUrlParser: true, useUnifiedTopology: true});
 
 db = mongoose.connection;
 db.on('error', console.error.bind(console, 'connection error:'));
 db.once('open', function() {
   console.log("connecté à Mongoose")
+  db.collection('users').findOne({}, function (findErr, result) {
+    if (findErr) throw findErr;
+    console.log(result.user_name);
+  });
 });
+
+
 
 const config = {
   //store: new SQLiteStore,
@@ -36,8 +42,8 @@ if (app.get('env') === 'production') {
   sess.cookie.secure = true // serve secure cookies
 }
 app.use(session(config))
-let users = require('./init.js');
-const req = require('express/lib/request');
+
+//const req = require('express/lib/request');
 
 app.set('views', './Views');
 app.set('view engine', 'jade');
@@ -121,8 +127,10 @@ const createUser = async object => {
 
 
 const findUsers = async user_name => {
-  const user = await users.find({})
-  return user
+  const userss = await users.find({})
+  userss.map(users => users.user_name);
+  console.log(userss)
+  return userss
 }
 
 app.listen(port, () => {
@@ -218,13 +226,16 @@ app.post("/register",async(req,res)=> {
     email_register : req.body.email_register,
     password_register_confirm : req.body.password_register_confirm,  
   }
-  const username = req.body.username
-  const mail = req.body.mail
-  const password = req.body.password
-  const password_confirm = req.body.password_confirm
+  const username = data.name_register
+  const mail = data.email_register
+  const password = data.password_register
+  const password_confirm = data.password_register_confirm
   //On se connecte automatiquement avec nos identifiants
+
+
   if (data.name_register.length > 3 && data.password_register.length > 5 && data.email_register.match(/[a-z0-9_\-\.]+@[a-z0-9_\-\.]+\.[a-z]+/i) && data.password_register == data.password_register_confirm){
-    console.log(createUser({ user_name: username, user_mail: mail,user_password:password}))
+    const new_user = await createUser({ user_name: username, user_mail: mail,user_password:password})
+    console.log(new_user)
     req.session.logged = true; 
     req.session.register_error = false;   
     res.redirect("/")
