@@ -11,7 +11,7 @@ const fs = require('fs');
 
 const mongoose = require('mongoose');
 const { MongoClient } = require('mongodb');
-let users = require('./init.js');
+let users = require('./users.js');
 mongoose.connect('mongodb://localhost:27017/test', {useNewUrlParser: true, useUnifiedTopology: true});
 
 db = mongoose.connection;
@@ -20,7 +20,6 @@ db.once('open', function() {
   console.log("connecté à Mongoose")
   db.collection('users').findOne({}, function (findErr, result) {
     if (findErr) throw findErr;
-    console.log(result.user_name);
   });
 });
 
@@ -129,7 +128,6 @@ const createUser = async object => {
 const findUsers = async user_name => {
   const userss = await users.find({})
   userss.map(users => users.user_name);
-  console.log(userss)
   return userss
 }
 
@@ -146,7 +144,7 @@ app.get("/",async (req,res)=> {
     logged : req.session.logged,
 }
   if (data.logged){
-    console.log("on est connecté");
+    console.log(req.session.success);
     res.render("home",data)
   }
   else {
@@ -162,22 +160,22 @@ app.get("/login",async(req,res)=> {
 });
 
 app.post("/login",async(req,res)=> {
-  const users = await findUsers()
+  const userss = await findUsers()
   data = {
     name : req.body.name,
     password : req.body.password,
   }
   let test = false;
   let user_id = 0;
-  for (let i = 0; i<users.length; i++){
-      if (users[i].user_mail ===data.name) {
-        console.log(users[i]);
+  for (let i = 0; i<userss.length; i++){
+      if (userss[i].user_mail ===data.name) {
+        console.log(userss[i]);
           test = true
           user_id = i
       }
   }
-  for (let i = 0; i<users.length; i++){
-    if (users[i].user_name ===data.name) {
+  for (let i = 0; i<userss.length; i++){
+    if (userss[i].user_name ===data.name) {
         test = true
         user_id = i
     }
@@ -187,19 +185,20 @@ app.post("/login",async(req,res)=> {
         req.session.logged = false
   }
   else{
-      const passwords = await users.findOne({user_mail: data.name})
-      passwords.forEach(element => test = (element.user_password===password))
-      if (!test){
-            req.session.connect_error = "Le mot de passe saisi est incorrect.",
-            req.session.logged = false
-      }
-      else{
-          req.session.mail = mail
-          const object_user = db.users.find({user_mail: data.name}, {user_name})
-          req.session.user = object_user.user_name
-          req.session.success = "Vous êtes log"
-          req.session.logged =  true
-      }
+    test = false
+    const good_user = await users.findOne({ $or: [ { user_mail: data.name } , { user_name: data.name } ] })
+    if (good_user.user_password === data.password) {
+      test = true
+    }
+    if (!test){
+          req.session.connect_error = "Le mot de passe saisi est incorrect.",
+          req.session.logged = false
+    }
+    else{
+      req.session.user_id = user_id
+        req.session.success = "Vous êtes log"
+        req.session.logged =  true
+    }
   }
   res.redirect("/")
 });
@@ -208,7 +207,7 @@ app.get("/register",async(req,res)=> {
   const data = {
     inscription : req.query.register,
   }
-  if(res.session.register_error != false) {
+  if(req.session.register_error != false) {
     console.log(req.session.register_error)
     res.render("login",data)
   }
@@ -234,26 +233,50 @@ app.post("/register",async(req,res)=> {
 
 
   if (data.name_register.length > 3 && data.password_register.length > 5 && data.email_register.match(/[a-z0-9_\-\.]+@[a-z0-9_\-\.]+\.[a-z]+/i) && data.password_register == data.password_register_confirm){
-    const new_user = await createUser({ user_name: username, user_mail: mail,user_password:password})
-    console.log(new_user)
-    req.session.logged = true; 
-    req.session.register_error = false;   
-    res.redirect("/")
+    const users = await findUsers()
+    //On parcourt les pseudos et les pseudos pour voir si ils sont déjà pris
+    let test = false
+    for (let i = 0; i<users.length; i++){
+      if (users[i].user_mail ===data.email_register) {
+          test = true
+      }
+    }
+    if (test){
+      req.session.register_error = "L'email choisi est déjà pris"
+      res.redirect("/register")
+      return;
+    }
+    test = false
+    for (let i = 0; i<users.length; i++){
+      if (users[i].user_name ===data.name_register) {
+          test = true
+      }
+    }
+    if (test){
+      req.session.register_error = "Le pseudo choisi est déjà pris"
+      res.redirect("/register")
+    }
+    else {
+      await createUser({ user_name: username, user_mail: mail,user_password:password})
+      req.session.logged = true; 
+      req.session.register_error = false;   
+      res.redirect("/register")
+    }
   }
   else if (data.name_register.length <= 3){
     req.session.register_error = "Le nom est trop court"
-    res.redirect("/") //Name is too short
+    res.redirect("/register") //Name is too short
   }
   else if (!data.email_register.match(/[a-z0-9_\-\.]+@[a-z0-9_\-\.]+\.[a-z]+/i)){
     req.session.register_error = "L'adresse email n'a pas le bon format"
-    res.redirect("/")
+    res.redirect("/register")
   }
   else if (data.password_register.length <= 5){
     req.session.register_error = "Le mot de passe est trop court"
-    res.redirect("/")
+    res.redirect("/register")
   }
   else if (data.password_register != data.password_register_confirm){
     req.session.register_error = "Les mots de passes ne matchent pas"
-    res.redirect("/")
+    res.redirect("/register")
   }
 });

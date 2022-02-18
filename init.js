@@ -1,12 +1,15 @@
-const mongoose = require('mongoose');
-const Schema = mongoose.Schema;
-
-const usersSchema = new Schema({
-    user_name:  String,
-    user_mail: String,
-    user_password:   String,
-  });
-
-const Users = mongoose.model('User', usersSchema)
-
-module.exports = Users
+const mongooseconnection = require("mongoose");
+mongooseconnection.connect("mongodb://127.0.0.1:27017/test", {
+    useNewUrlParser: true
+});
+const connection = mongooseconnection.connection;
+connection.once("open", function() {
+    console.log("MongoDB connected successfully")
+    connection.db.listCollections().toArray(function(err, names) {
+        if (err) {
+            console.log(err);
+        } else {
+                    mongooseconnection.connection.db.dropDatabase()
+        }
+    });
+});
