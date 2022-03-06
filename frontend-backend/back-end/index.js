@@ -1,7 +1,7 @@
 const express = require("express");
 
 const app = express()
-const port = process.env.PORT || 3000;
+const port = 3000;
 
 const bodyParser = require('body-parser');
 app.use(bodyParser.json()); // support json encoded bodies
@@ -55,6 +55,7 @@ const findUsers = async user_name => {
 
 
 app.get("/",async (req,res)=> {
+  console.log("at app.get /")
   const users = await findUsers()
   const data = {
     users,
@@ -203,6 +204,72 @@ app.post("/register",async(req,res)=> {
   }
 });
 
+app.post("/",async(req,res)=> {
+  console.log("we re at / (app.post)")
+  const data = {
+    inscription : req.query.register,
+    etat : req.query.state,
+    name_register : req.body.username,
+    password_register : req.body.password,
+    email_register : req.body.email,
+    password_register_confirm : req.body.cpassword,  
+  }
+  console.log(data)
+  const username = data.name_register
+  const mail = data.email_register
+  const password = data.password_register
+  const password_confirm = data.password_register_confirm
+  //On se connecte automatiquement avec nos identifiants
+
+
+  if (data.name_register.length > 3 && data.password_register.length > 5 && data.email_register.match(/[a-z0-9_\-\.]+@[a-z0-9_\-\.]+\.[a-z]+/i) && data.password_register == data.password_register_confirm){
+    const users = await findUsers()
+    //On parcourt les pseudos et les pseudos pour voir si ils sont déjà pris
+    let test = false
+    for (let i = 0; i<users.length; i++){
+      if (users[i].user_mail ===data.email_register) {
+          test = true
+      }
+    }
+    if (test){
+      req.session.register_error = "L'email choisi est déjà pris"
+      res.redirect("/register")
+      return;
+    }
+    test = false
+    for (let i = 0; i<users.length; i++){
+      if (users[i].user_name ===data.name_register) {
+          test = true
+      }
+    }
+    if (test){
+      req.session.register_error = "Le pseudo choisi est déjà pris"
+      res.redirect("/register")
+    }
+    else {
+      await createUser({ user_name: username, user_mail: mail,user_password:password})
+      req.session.logged = true; 
+      req.session.register_error = false;   
+      res.redirect("/register")
+    }
+  }
+  else if (data.name_register.length <= 3){
+    req.session.register_error = "Le nom est trop court"
+    res.redirect("/register") //Name is too short
+  }
+  else if (!data.email_register.match(/[a-z0-9_\-\.]+@[a-z0-9_\-\.]+\.[a-z]+/i)){
+    req.session.register_error = "L'adresse email n'a pas le bon format"
+    res.redirect("/register")
+  }
+  else if (data.password_register.length <= 5){
+    req.session.register_error = "Le mot de passe est trop court"
+    res.redirect("/register")
+  }
+  else if (data.password_register != data.password_register_confirm){
+    req.session.register_error = "Les mots de passes ne matchent pas"
+    res.redirect("/register")
+  }
+});
 
 app.listen(port, () => {
     console.log(`listening on ${port}`);

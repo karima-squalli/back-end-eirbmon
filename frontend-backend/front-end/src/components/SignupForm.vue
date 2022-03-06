@@ -1,5 +1,5 @@
 <template>
-    <form @submit.prevent="handleSubmit">
+    <form @submit.prevent="registerUser">
         <label>Username:</label>
         <input type="text" required v-model="username">
 
@@ -18,17 +18,12 @@
             <button>Submit</button>
         </div>
     </form>
-
-    <p>Username:{{username}}</p>
-    <p>Email:{{email}}</p>
-    <p>Password:{{password}}</p>
-    <p>Confirm password:{{cpassword}}</p>
 </template>
 
 <script>
 import axios from 'axios'
 export default {
-    name : "SignupForm",
+    name : "signupForm",
     data(){
         return{
             username:'',
@@ -42,19 +37,20 @@ export default {
     },
 
 
-    methods:{
-        registerStudent: function() {
+    methods: {
+        registerUser: function() {
             axios.post('/register', {
                 username: this.username,
                 email: this.email,
                 password: this.password,
                 cpassword: this.cpassword
-            }).then(() => {
-                alert("yow");
-            this.passwordError = this.password.length>5 ? '' : 'Un mot de passe doit contenir au moins 6 caractères',
-            this.cpasswordError = this.password===this.cpassword ? '' :'Les mots de passe doivent correspondre'
+            }).then((req) => {
+                if (req.session.register_error) alert(req.session.register_error);
+                
+                this.passwordError = this.password.length>5 ? '' : 'Un mot de passe doit contenir au moins 6 caractères';
+                this.cpasswordError = this.password===this.cpassword ? '' :'Les mots de passe doivent correspondre'
         }).catch(()=>{
-            alert("Something Went Wrong");
+            alert("Something Went Wrong!");
         })
         }
     }
