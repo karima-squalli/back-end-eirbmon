@@ -35,7 +35,7 @@ export default {
   },
   methods: {
     loadUsersTable: function(){
-      axios.get("/api/students").then((res) => {
+      axios.get("/api/register").then((res) => {
         this.users = res.data;
       })
       .catch(()=>{

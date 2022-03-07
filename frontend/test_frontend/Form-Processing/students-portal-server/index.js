@@ -60,62 +60,34 @@ app.get("/", (req, res) => {
 })
 
 
-function validateFName(fname) {
+function validateUsername(username) {
     let errors = [];
-    if (fname.length == 0) {
-        errors.push("First Name Is Null");
+    if (username.length == 0) {
+        errors.push("Username Is Null");
     }
 
-    if (fname.length > 50) {
-        errors.push("First Name Length Can Not Exceed 50 Characters.");
+    if (username.length > 50) {
+        errors.push("Username Length Can Not Exceed 50 Characters.");
     }
 
     return errors;
 }
 
-function validateLName(lname) {
+function validatePasswordconfirm(password,passwordconfirm) {
     let errors = [];
-    if (lname.length == 0) {
-        errors.push("Last Name Is Null");
-    }
-
-    if (lname.length > 50) {
-        errors.push("Last Name Length Can Not Exceed 50 Characters.");
+    if (password !== passwordconfirm || passwordconfirm === "") {
+        errors.push("password confirmation is different from password");
     }
 
     return errors;
 }
 
-function validateBirthDate(date) {
-    let errors = [];
-    if (date === undefined || date === "") {
-        errors.push("Birth Date is Null");
-    }
-
-    return errors;
-}
-
-function validateContactNo(contactno) {
+function validatePassword(password) {
     let errors = [];
 
     // check whether contact no is empty or not
-    if (contactno.length == 0) {
-        errors.push("Contact Number Is Null");
-    }
-
-    // cheaks whether contact no length is less then 10 character
-    if (contactno.length < 10) {
-        errors.push("Contact Number Must Be Of 10 Digits");
-    }
-
-    // checks whether contact no length is more then 10 character
-    if (contactno.length > 10) {
-        errors.push("Contact No Must Be of 10 Digits");
-    }
-
-    // Using regular expression check whether contactno is only containing digits or not
-    if (!(/[0-9]/g.test(contactno))) {
-        errors.push("Contact Number Must Contain Digits Only");
+    if (password.length == 0) {
+        errors.push("Password Is Null");
     }
 
     return errors;
@@ -143,63 +115,61 @@ function validateEmail(email) {
     return errors;
 }
 
-function validateSemester(semester) {
+async function validateRegister(username,email){   
     let errors = [];
-    if (semester.length == 0) {
-        errors.push("Semester Is Null");
+    const users = await findUsers()
+    //On parcourt les pseudos et les emails pour voir si ils sont déjà pris
+    let test = false
+    for (let i = 0; i<users.length; i++){
+        if (users[i].user_mail ===email) {
+            test = true
+        }
     }
-
-    if (semester > 8) {
-        errors.push("Invalid Semester");
+    if (test){
+        errors.push("L'email choisi est déjà pris"); 
     }
-
+    test = false
+    for (let i = 0; i<users.length; i++){
+        if (users[i].user_name ===username) {
+            test = true
+        }
+    }
+    if (test){
+        errors.push("Le pseudo choisi est déjà pris");  
+    }
     return errors;
 }
 
-function validateCourse(course) {
-    let errors = [];
-    if (course !== "B.Tech Computer Engineering" && course !== "B.Tech Information Technology") {
-        errors.push("Invalid Course");
-    }
-    return errors;
-}
-
-
-app.post("/api/student", async(req, res) => {
+app.post("/api/register", async(req, res) => {
     console.log("Requesey..	");
-    let fname = req.body.fname;
-    let lname = req.body.lname;
+    let username = req.body.username;
     let email = req.body.email;
-    let contactno = req.body.contactno;
-    let birthdate = req.body.birthdate;
-    let semester = req.body.semester;
-    let course = req.body.course;
+    let password = req.body.password;
+    let passwordconfirm = req.body.passwordconfirm;
 
-    let errFName = validateFName(fname); // will validate first name
-    let errLName = validateLName(lname); // will validate last name
+    let errFUsername = validateUsername(username); // will validate username
     let errEmail = validateEmail(email); // will validate email
-    let errContactNo = validateContactNo(contactno); // will validate contact no
-    let errBirthDate = validateBirthDate(birthdate); // will validate birthdate
-    let errSemester = validateSemester(semester); // will validate semester
-    let errCourse = validateCourse(course); // will validate course
+    let errPassword = validatePassword(password); // will validate contact no
+    let errPasswordconfirm = validatePasswordconfirm(password,passwordconfirm); // will validate passwordconfirm
 
-    if (errFName.length || errLName.length || errEmail.length || errContactNo.length || errBirthDate.length || errSemester.length || errCourse.length) {
+    //On teste la database
+    let errRegister = await validateRegister(username,email); //will validate final registration
+
+    if (errFUsername.length || errEmail.length || errPassword.length || errPasswordconfirm.length || errRegister.length) {
         res.status(200).json({
             msg: "Validation Failed",
             errors: {
-                fname: errFName,
-                lname: errLName,
+                username: errFUsername,
                 email: errEmail,
-                contactno: errContactNo,
-                birthdate: errBirthDate,
-                semester: errSemester,
-                course: errCourse
+                password: errPassword,
+                passwordconfirm: errPasswordconfirm,
+                register: errRegister
             }
         });
     }
     else {
         console.log("We add a new user to the database")
-        await createUser({ user_name: fname, user_mail: email,user_password:course})
+        await createUser({ user_name: username, user_mail: email,user_password:password})
         req.session.logged = true; 
         req.session.register_error = false;  
         res.status(200).send({
@@ -209,7 +179,7 @@ app.post("/api/student", async(req, res) => {
 });
 
 
-app.get("/api/students", async(req, res) => {
+app.get("/api/register", async(req, res) => {
     const users = await findUsers()
     console.log(users[1]);
     res.status(200).send({
